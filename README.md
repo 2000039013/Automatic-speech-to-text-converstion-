@@ -157,24 +157,4 @@ python3 benchmark.py \
 
 ![](res/summary.png)
 
-|              Engine              | LibriSpeech test-clean | LibriSpeech test-other | TED-LIUM | CommonVoice | Average |
-|:--------------------------------:|:----------------------:|:----------------------:|:--------:|:-----------:|:-------:|
-|        Amazon Transcribe         |         5.20%          |         9.58%          |  4.25%   |   15.94%    |  8.74%  |
-|       Azure Speech-to-Text       |         4.96%          |         9.66%          |  4.99%   |   12.09%    |  7.93%  |
-|      Google Speech-to-Text       |         11.23%         |         24.94%         |  15.00%  |   30.68%    | 20.46%  |
-| Google Speech-to-Text (Enhanced) |         6.62%          |         13.59%         |  6.68%   |   18.39%    | 11.32%  |
-|    IBM Watson Speech-to-Text     |         11.08%         |         26.38%         |  11.89%  |   38.81%    | 22.04%  |
-|        Mozilla DeepSpeech        |         7.27%          |         21.45%         |  18.90%  |   43.82%    | 22.86%  |
-|        Picovoice Cheetah         |         7.08%          |         16.28%         |  10.89%  |   23.10%    | 14.34%  |
-|        Picovoice Leopard         |         5.39%          |         12.45%         |  9.04%   |   17.13%    | 11.00%  |
-
-### RTF
-
-Measurement is carried on an Ubuntu 20.04 machine with Intel CPU (`Intel(R) Core(TM) i5-6500 CPU @ 3.20GHz`), 64 GB of
-RAM, and NVMe storage.
-
-|       Engine       | RTF  | Model Size |
-|:------------------:|:----:|:----------:|
-| Mozilla DeepSpeech | 0.46 |  1142 MB   |
-| Picovoice Cheetah  | 0.07 |   19 MB    |
 | Picovoice Leopard  | 0.05 |   19 MB    |
