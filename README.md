@@ -1,160 +1,82 @@
-# Speech-to-Text Benchmark
+Statics3Uplode
+import json
+import base64
+import boto3
+import email
 
-Made in Vancouver, Canada by [Picovoice](https://picovoice.ai)
 
-This repo is a minimalist and extensible framework for benchmarking different speech-to-text engines.
+def lambda_handler(event, context):
+    s3 = boto3.client("s3")
 
-## Table of Contents
+    # decoding form-data into bytes
+    post_data = base64.b64decode(event["body"])
+    # fetching content-type
+    try:
+        content_type = event["headers"]["Content-Type"]
+    except:
+        content_type = event["headers"]["content-type"]
+    # concate Content-Type: with content_type from event
+    ct = "Content-Type: " + content_type + "\n"
 
-- [Data](#data)
-- [Metrics](#metrics)
-- [Engines](#engines)
-- [Usage](#usage)
-- [Results](#results)
+    # parsing message from bytes
+    msg = email.message_from_bytes(ct.encode() + post_data)
 
-## Data
+    # checking if the message is multipart
+    print("Multipart check : ", msg.is_multipart())
 
-- [LibriSpeech](http://www.openslr.org/12/)
-- [TED-LIUM](https://www.openslr.org/7/)
-- [Common Voice](https://commonvoice.mozilla.org/en)
+    # if message is multipart
+    if msg.is_multipart():
+        multipart_content = {}
+        # retrieving form-data
+        for part in msg.get_payload():
+            # checking if filename exist as a part of content-disposition header
+            if part.get_filename():
+                # fetching the filename
+                file_name = part.get_filename()
+            multipart_content[
+                part.get_param("name", header="content-disposition")
+            ] = part.get_payload(decode=True)
 
-## Metrics
+        # filename from form-data
+        file_name = json.loads(multipart_content["Metadata"])["filename"]
+        # u uploading file to S3
+        s3_upload = s3.put_object(
+            Bucket="bucket-name", Key=file_name, Body=multipart_content["file"]
+        )
 
-### Word Error Rate
+        # on upload success
+        return {"statusCode": 200, "body": json.dumps("File uploaded successfully!")}
+    else:
+        # on upload failure
+        return {"statusCode": 500, "body": json.dumps("Upload failed!")}
+ lambda.txt       
+import boto3
+import uuid
+import json
 
-Word error rate (WER) is the ratio of edit distance between words in a reference transcript and the words in the output
-of the speech-to-text engine to the number of words in the reference transcript.
+def lambda_handler(event, context):
 
-### Real Time Factor
+    record = event['Records'][0]
+    
+    s3bucket = record['s3']['bucket']['name']
+    s3object = record['s3']['object']['key']
+    
+    s3Path = "s3://" + s3bucket + "/" + s3object
+    jobName = s3object + '-' + str(uuid.uuid4())
 
-Real-time factor (RTF) is the ratio of CPU (processing) time to the length of the input speech file. A speech-to-text
-engine with lower RTF is more computationally efficient. We omit this metric for cloud-based engines.
+    client = boto3.client('transcribe')
 
-### Model Size
+    response = client.start_transcription_job(
+        TranscriptionJobName=jobName,
+        LanguageCode='en-US',
+        MediaFormat='mp4',
+        Media={
+            'MediaFileUri': s3Path
+        },
+        OutputBucketName = "{OUTPUT_BUCKET_NAME}"
+    )
 
-The aggregate size of models (acoustic and language), in MB. We omit this metric for cloud-based engines.
 
-## Engines
-
-- [Amazon Transcribe](https://aws.amazon.com/transcribe/)
-- [Azure Speech-to-Text](https://azure.microsoft.com/en-us/services/cognitive-services/speech-to-text/)
-- [Google Speech-to-Text](https://cloud.google.com/speech-to-text)
-- [IBM Watson Speech-to-Text](https://www.ibm.com/ca-en/cloud/watson-speech-to-text)
-- [Mozilla DeepSpeech](https://github.com/mozilla/DeepSpeech)
-- [Picovoice Cheetah](https://picovoice.ai/)
-- [Picovoice Leopard](https://picovoice.ai/)
-
-## Usage
-
-This benchmark has been developed and tested on `Ubuntu 20.04`.
-
-- Install [FFmpeg](https://www.ffmpeg.org/)
-- Download datasets.
-- Install the requirements:
-
-```console
-pip3 install -r requirements.txt
-```
-
-### Amazon Transcribe Instructions
-
-Replace `${DATASET}` with one of the supported datasets, `${DATASET_FOLDER}` with path to dataset, and `${AWS_PROFILE}`
-with the name of AWS profile you wish to use.
-
-```console
-python3 benchmark.py \
---dataset ${DATASET} \
---dataset-folder ${DATASET_FOLDER} \
---engine AMAZON_TRANSCRIBE \
---aws-profile ${AWS_PROFILE}
-```
-
-### Azure Speech-to-Text Instructions
-
-Replace `${DATASET}` with one of the supported datasets, `${DATASET_FOLDER}` with path to dataset,
-`${AZURE_SPEECH_KEY}` and `${AZURE_SPEECH_LOCATION}` information from your Azure account.
-
-```console
-python3 benchmark.py \
---dataset ${DATASET} \
---dataset-folder ${DATASET_FOLDER} \
---engine AZURE_SPEECH_TO_TEXT \
---azure-speech-key ${AZURE_SPEECH_KEY}
---azure-speech-location ${AZURE_SPEECH_LOCATION}
-```
-
-### Google Speech-to-Text Instructions
-
-Replace `${DATASET}` with one of the supported datasets, `${DATASET_FOLDER}` with path to dataset, and
-`${GOOGLE_APPLICATION_CREDENTIALS}` with credentials download from Google Cloud Platform.
-
-```console
-python3 benchmark.py \
---dataset ${DATASET} \
---dataset-folder ${DATASET_FOLDER} \
---engine GOOGLE_SPEECH_TO_TEXT \
---google-application-credentials ${GOOGLE_APPLICATION_CREDENTIALS}
-```
-
-### IBM Watson Speech-to-Text Instructions
-
-Replace `${DATASET}` with one of the supported datasets, `${DATASET_FOLDER}` with path to dataset, and
-`${WATSON_SPEECH_TO_TEXT_API_KEY}`/`${${WATSON_SPEECH_TO_TEXT_URL}}` with credentials from your IBM account.
-
-```console
-python3 benchmark.py \
---dataset ${DATASET} \
---dataset-folder ${DATASET_FOLDER} \
---engine IBM_WATSON_SPEECH_TO_TEXT \
---watson-speech-to-text-api-key ${WATSON_SPEECH_TO_TEXT_API_KEY}
---watson-speech-to-text-url ${WATSON_SPEECH_TO_TEXT_URL}
-```
-
-### Mozilla DeepSpeech Instructions
-
-Replace `${DATASET}` with one of the supported datasets, `${DATASET_FOLDER}` with path to dataset,
-`${DEEP_SPEECH_MODEL}` with path to DeepSpeech model file (`.pbmm`), and `${DEEP_SPEECH_SCORER}` with path to DeepSpeech
-scorer file (`.scorer`).
-
-```console
-python3 benchmark.py \
---engine MOZILLA_DEEP_SPEECH \
---dataset ${DATASET} \
---dataset-folder ${DATASET_FOLDER} \
---deepspeech-pbmm ${DEEP_SPEECH_MODEL} \
---deepspeech-scorer ${DEEP_SPEECH_SCORER}
-```
-
-### Picovoice Cheetah Instructions
-
-Replace `${DATASET}` with one of the supported datasets, `${DATASET_FOLDER}` with path to dataset, and
-`${PICOVOICE_ACCESS_KEY}` with AccessKey obtained from [Picovoice Console](https://console.picovoice.ai/).
-
-```console
-python3 benchmark.py \
---engine PICOVOICE_CHEETAH \
---dataset ${DATASET} \
---dataset-folder ${DATASET_FOLDER} \
---picovoice-access-key ${PICOVOICE_ACCESS_KEY}
-```
-
-### Picovoice Leopard Instructions
-
-Replace `${DATASET}` with one of the supported datasets, `${DATASET_FOLDER}` with path to dataset, and
-`${PICOVOICE_ACCESS_KEY}` with AccessKey obtained from [Picovoice Console](https://console.picovoice.ai/).
-
-```console
-python3 benchmark.py \
---engine PICOVOICE_LEOPARD \
---dataset ${DATASET} \
---dataset-folder ${DATASET_FOLDER} \
---picovoice-access-key ${PICOVOICE_ACCESS_KEY}
-```
-
-## Results
-
-### Word Error Rate (WER)
-
-![](res/summary.png)
-
-| Picovoice Leopard  | 0.05 |   19 MB    |
+    return {
+        'TranscriptionJobName': response['TranscriptionJob']['TranscriptionJobName']
+    }
